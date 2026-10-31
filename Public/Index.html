@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ready-Writer</title>
+<style>
+:root{--bg:#f7f5f0;--card:#fff;--tx:#1d1d1f;--mut:#6b6b70;--ac:#8a4b2a;--bd:#ddd6c9}
+[data-theme=night]{--bg:#121212;--card:#1d1d1f;--tx:#e8e8e8;--mut:#9a9aa0;--ac:#e0a26b;--bd:#333}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,sans-serif}
+main{max-width:720px;margin:auto;padding:16px}header{display:flex;justify-content:space-between;align-items:center}
+h1{margin:.3em 0}.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin:12px 0}
+label{display:block;font-size:14px;color:var(--mut);margin:10px 0 4px}
+input,select,textarea{width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.chk{display:flex;gap:8px;align-items:center;margin:8px 0;color:var(--tx)}.chk input{width:auto}
+button{background:var(--ac);color:#fff;border:0;border-radius:10px;padding:12px 16px;font:inherit;font-weight:600;width:100%;cursor:pointer}
+button.t{width:auto;background:var(--card);color:var(--tx);border:1px solid var(--bd)}button:disabled{opacity:.6}
+a.dl{display:block;padding:10px;margin:6px 0;border:1px solid var(--bd);border-radius:8px;color:var(--ac);font-weight:600;text-decoration:none}
+.err{color:#c0392b}small{color:var(--mut)}
+</style></head>
+<body><main>
+<header><h1>📖 Ready-Writer</h1><button class="t" id="tg" type="button">🌙 Night</button></header>
+<small>Upload your manuscript, get a sellable PDF + EPUB with an AI back cover.</small>
+<form id="f">
+<div class="card"><b>Manuscript</b>
+<label>Files (.txt or .docx, multiple allowed)</label><input type="file" name="manuscripts" accept=".txt,.docx,.md" multiple required>
+<label>Pictures (JPG/PNG) — put [[image:1]] on its own line in your text to place the 1st one</label><input type="file" name="images" accept="image/jpeg,image/png" multiple>
+<label class="chk"><input type="checkbox" name="aiEdit" checked> AI tidy-up (spelling, punctuation, paragraphs)</label>
+<label class="chk"><input type="checkbox" name="autoPlace" checked> Auto-spread unplaced pictures across chapters</label></div>
+<div class="card"><b>Book details</b>
+<label>Book name</label><input name="title" required>
+<div class="row"><div><label>Author</label><input name="author" required></div><div><label>Date written</label><input name="date" placeholder="2026-10-31"></div></div>
+<div class="row"><div><label>ISBN</label><input name="isbn" placeholder="978-…"></div><div><label>Genre (helps the AI)</label><input name="genre" placeholder="Thriller, Romance…"></div></div>
+<label>Dedication (optional)</label><input name="dedication">
+<label>Back-cover blurb (leave empty to let AI write it)</label><textarea name="blurb" rows="3"></textarea></div>
+<div class="card"><b>Look</b>
+<div class="row"><div><label>Font</label><select name="font"><option value="serif">Serif (Times)</option><option value="sans">Sans (Helvetica)</option><option value="mono">Mono (Courier)</option></select></div>
+<div><label>Font size</label><input name="fontSize" type="number" step=".5" min="9" max="16" value="11.5"></div></div>
+<div class="row"><div><label>Trim size</label><select name="trim"><option>6x9</option><option>5.5x8.5</option><option>5x8</option></select></div>
+<div><label>Book reading mode</label><select name="theme"><option value="day">☀️ Day (white page)</option><option value="night">🌙 Night (dark page)</option></select></div></div>
+<label class="chk"><input type="checkbox" name="aiCover" checked> AI-generate front &amp; back cover art</label>
+<label>Upload your own front cover (optional)</label><input type="file" name="cover" accept="image/jpeg,image/png">
+<label>Cover style hint (optional)</label><input name="coverStyle" placeholder="dark forest, gold lettering mood…"></div>
+<button id="go">Generate my book</button>
+</form>
+<div class="card" id="out" hidden></div>
+</main>
+<script>
+const root=document.documentElement,tg=document.getElementById('tg');
+const set=t=>{root.dataset.theme=t;tg.textContent=t==='night'?'☀️ Day':'🌙 Night';try{localStorage.rwTheme=t}catch{}};
+let saved;try{saved=localStorage.rwTheme}catch{}set(saved||(matchMedia('(prefers-color-scheme:dark)').matches?'night':'day'));
+tg.onclick=()=>set(root.dataset.theme==='night'?'day':'night');
+const f=document.getElementById('f'),out=document.getElementById('out'),go=document.getElementById('go');
+f.onsubmit=async e=>{e.preventDefault();go.disabled=true;go.textContent='Working… (AI steps can take 1–3 min)';out.hidden=false;out.innerHTML='Building your book…';
+ const fd=new FormData(f);['aiEdit','autoPlace','aiCover'].forEach(k=>fd.set(k,f[k].checked?'on':'off'));
+ try{const r=await fetch('/api/generate',{method:'POST',body:fd});const d=await r.json();
+  if(!r.ok)throw new Error(d.error);
+  out.innerHTML='<b>Your book is ready ('+d.chapters+' chapters)</b>'+d.files.map(x=>`<a class="dl" href="${x.url}" download>⬇ ${x.label}</a>`).join('')+
+   (d.notes.length?'<small>'+d.notes.join('<br>')+'</small>':'')+'<p><b>Back-cover blurb</b></p><p></p>';
+  out.lastChild.textContent=d.blurb;
+ }catch(err){out.innerHTML='<span class="err"></span>';out.firstChild.textContent=err.message}
+ go.disabled=false;go.textContent='Generate my book'};
+</script></body></html>
